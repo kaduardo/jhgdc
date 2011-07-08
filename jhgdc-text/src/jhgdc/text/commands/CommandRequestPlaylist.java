@@ -23,6 +23,7 @@ package jhgdc.text.commands;
 import java.util.List;
 
 import jhgdc.library.HGDClient;
+import jhgdc.library.PlaylistItem;
 
 /**
  * Class implementing the request playlist command.
@@ -48,8 +49,8 @@ public class CommandRequestPlaylist extends AbstractCommand {
 	@Override
 	protected void doCommand(List<String> args, HGDClient clientConnection)
 			throws Exception {
-		String playlist[] = clientConnection.requestPlaylist();
-		for (String playlistItem : playlist ){
+		List<PlaylistItem> playlist = clientConnection.requestPlaylist();
+		for (PlaylistItem playlistItem : playlist ){
 			System.out.println("Item: " + playlistItem);
 		}
 	}
