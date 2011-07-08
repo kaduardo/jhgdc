@@ -32,6 +32,7 @@ import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class implements a HGD client.
@@ -48,6 +49,7 @@ import java.util.ArrayList;
  * HGD daemon.
  * 
  * @author Carlos Eduardo da Silva
+ * @author Matthew Mole
  * @since 22/03/2011
  * 
  */
@@ -177,8 +179,8 @@ public class HGDClient {
 	 * @throws JHGDException
 	 *             If the connection can not be established.
 	 */
-	public void connect(String host) throws IllegalStateException,
-			IOException, JHGDException {
+	public void connect(String host) throws IllegalStateException, IOException,
+			JHGDException {
 		connect(host, HGDConsts.DEFAULT_PORT);
 	}
 
@@ -213,12 +215,14 @@ public class HGDClient {
 			throw new JHGDException(returnMessage.substring(returnMessage
 					.indexOf('|') + 1));
 		}
-		
+
 		String protocolVersion = requestProto();
-		if ( !protocolVersion.equalsIgnoreCase(HGDConsts.PROTOCOLVERSION)) {
-			throw new JHGDException("Incompatible protocols. Client: " + HGDConsts.PROTOCOLVERSION + ", Daemon: " + protocolVersion);
+		if (!protocolVersion.equalsIgnoreCase(HGDConsts.PROTOCOLVERSION)) {
+			throw new JHGDException("Incompatible protocols. Client: "
+					+ HGDConsts.PROTOCOLVERSION + ", Daemon: "
+					+ protocolVersion);
 		}
-		
+
 		// set the flags
 		this.connected = true;
 		this.authenticated = false;
@@ -226,7 +230,7 @@ public class HGDClient {
 		this.port = port;
 		this.username = null;
 		this.password = null;
-		
+
 	}
 
 	/**
@@ -283,9 +287,13 @@ public class HGDClient {
 	 *            The username.
 	 * @param password
 	 *            The password.
-	 * @throws IllegalStateException If the client is not connected to a HGD daemon.
-	 * @throws IOException If an I/O exception occurs.
-	 * @throws JHGDException If the username or password is null, or if the server returns a message different than ok.
+	 * @throws IllegalStateException
+	 *             If the client is not connected to a HGD daemon.
+	 * @throws IOException
+	 *             If an I/O exception occurs.
+	 * @throws JHGDException
+	 *             If the username or password is null, or if the server returns
+	 *             a message different than ok.
 	 */
 	public void login(String username, String password)
 			throws IllegalStateException, IOException, JHGDException {
@@ -325,16 +333,18 @@ public class HGDClient {
 	/**
 	 * Recover the playlist from the daemon.
 	 * 
-	 * This method implements the "ls" command of the HGD protocol.
-	 * It recovers the playlist from the daemon and returns it as an
-	 * array of string. 
+	 * This method implements the "ls" command of the HGD protocol. It recovers
+	 * the playlist from the daemon and returns it as an array of string.
 	 * 
-	 * @return The playlist as an array of String, where each String has the following format:  <track-id>|<filename>|<artist>|<title>|<user>.
-	 *  @throws IllegalStateException If the client is not connected to a HGD daemon.
-	 * @throws IOException If an I/O exception occurs.
-	 * @throws JHGDException If the server returns a message different than ok.
+	 * @return The playlist as a List of PlayListItem objects.
+	 * @throws IllegalStateException
+	 *             If the client is not connected to a HGD daemon.
+	 * @throws IOException
+	 *             If an I/O exception occurs.
+	 * @throws JHGDException
+	 *             If the server returns a message different than ok.
 	 */
-	public String[] requestPlaylist() throws IllegalStateException,
+	public List<PlaylistItem> requestPlaylist() throws IllegalStateException,
 			IOException, JHGDException {
 		// Check if the connection is established
 		if (!connected)
@@ -347,18 +357,20 @@ public class HGDClient {
 		// Debug
 		// System.out.println("req_playlist - returned: "+returnMessage);
 
-		String returnList[];
+		List<PlaylistItem> returnList;
 
 		if (checkServerResponse(returnMessage) == HGDConsts.SUCCESS) {
 			int numberOfItems = Integer.parseInt(returnMessage.split("\\|")[1]);
-			returnList = new String[numberOfItems];
+			returnList = new ArrayList<PlaylistItem>();
 
 			if (numberOfItems > 0) {
 				String returnedItem;
 
 				for (int i = 0; i < numberOfItems; i++) {
 					returnedItem = (String) input.readLine();
-					returnList[i] = returnedItem;
+
+					returnList.add(HGDClientUtil
+							.parsePlaylistItem(returnedItem));
 				}
 			}
 			return returnList;
@@ -369,34 +381,47 @@ public class HGDClient {
 	}
 
 	/**
-	 * Gets the currently playing item, if any. 
+	 * Gets the currently playing item, if any.
 	 * 
-	 * This method implement the "np"
-	 * command of the HGD protocol.
+	 * This method implement the "np" command of the HGD protocol.
 	 * 
-	 * @return a String in the following format:
-	 *         ok|<playing?>[|<track-id>|<file‐name>|<artist>|<title>|<user>].
-	 *         If <playing?> = 0, then nothing is playing and therefore, no
-	 *         further information is available. The <artist> and <title> fields
-	 *         are generated from metadata using taglib at time of upload. If no
-	 *         tag information was available, the <artist> and <title> fields
-	 *         remain blank.
+	 * @return a List of PlaylistItem with a maximum of one element, or empty
+	 *         list if there is no track being played.
+	 * 
 	 * @throws IllegalStateException
 	 *             in case the library is not connected.
-	 * @throws IOException If an I/O exception occurs.
-	 * @throws JHGDException If the server returns a message different than ok.
+	 * @throws IOException
+	 *             If an I/O exception occurs.
+	 * @throws JHGDException
+	 *             If the server returns a message different than ok.
 	 */
-	public String requestNowPlaying() throws IllegalStateException,
+	public List<PlaylistItem> requestNowPlaying() throws IllegalStateException,
 			IOException, JHGDException {
 		// Check if the connection is established
 		if (!connected)
 			throw new IllegalStateException("Client not connected");
 
 		sendLineCommand("np");
+		/*
+		 * returnMessage has the following format:
+		 * ok|<playing?>[|<track-id>|<filename>|<artist>|<title>|<user>]. If
+		 * <playing?> = 0, then nothing is playing and therefore, no further
+		 * information is available.
+		 */
 		String returnMessage = (String) input.readLine();
 
+		List<PlaylistItem> returnList;
 		if (checkServerResponse(returnMessage) == HGDConsts.SUCCESS) {
-			return returnMessage;
+			returnList = new ArrayList<PlaylistItem>();
+			if (returnMessage.split("\\|")[1].equalsIgnoreCase("0") ) {
+				//return empty list
+				return returnList;
+			} 
+			returnList.add(HGDClientUtil.parsePlaylistItem(
+					returnMessage.substring(returnMessage.indexOf('|')+2)
+					));
+			return 
+					returnList;
 		} else {
 			throw new JHGDException(returnMessage.substring(returnMessage
 					.indexOf('|') + 1));
@@ -411,12 +436,14 @@ public class HGDClient {
 	 * @return The protocol major version of the daemon.
 	 * @throws IllegalStateException
 	 *             in case the library is not connected.
-	 * @throws  IOException If an I/O exception occurs.
-	 * @throws JHGDException If the server returns a message different than ok.
+	 * @throws IOException
+	 *             If an I/O exception occurs.
+	 * @throws JHGDException
+	 *             If the server returns a message different than ok.
 	 */
 	private String requestProto() throws IllegalStateException, IOException,
 			JHGDException {
-		
+
 		sendLineCommand("proto");
 		String returnMessage = (String) input.readLine();
 
@@ -432,8 +459,8 @@ public class HGDClient {
 	 * Votes off the currently playing track.
 	 * 
 	 * It is recommended that clients use the 1-argument variant of this command
-	 * to avoid race conditions in voting off.
-	 * This method has been maintained for testing purposes.
+	 * to avoid race conditions in voting off. This method has been maintained
+	 * for testing purposes.
 	 * 
 	 * {"vo", 0, 1, hgd_req_vote_off},
 	 */
@@ -456,15 +483,19 @@ public class HGDClient {
 		}
 	}
 
-    /**
-     * Votes off the track with the track id <track-id> if and
-     only if it is now playing. 
-	 *
-     * @param trackId The id of the track.
-     * @throws IllegalStateException
-     * @throws IOException If an I/O exception occurs.
-     * @throws JHGDException If the user is not authenticated, or if the server returns an error.
-     */
+	/**
+	 * Votes off the track with the track id <track-id> if and only if it is now
+	 * playing.
+	 * 
+	 * @param trackId
+	 *            The id of the track.
+	 * @throws IllegalStateException
+	 * @throws IOException
+	 *             If an I/O exception occurs.
+	 * @throws JHGDException
+	 *             If the user is not authenticated, or if the server returns an
+	 *             error.
+	 */
 	public void requestVoteOff(String trackId) throws IllegalStateException,
 			IOException, JHGDException {
 		if (!connected) {
@@ -474,7 +505,7 @@ public class HGDClient {
 		if (!authenticated) {
 			throw new IllegalStateException("Client not authenticated");
 		}
-		
+
 		sendLineCommand("vo|" + trackId);
 		String returnMessage = input.readLine();
 		if (checkServerResponse(returnMessage) != HGDConsts.SUCCESS) {
@@ -489,7 +520,9 @@ public class HGDClient {
 	 * This method implements the "q" command of the HGD protocol.
 	 * 
 	 * {"q", 1, 1, hgd_req_queue},
-	 * @throws IOException If an I/O exception occurs.
+	 * 
+	 * @throws IOException
+	 *             If an I/O exception occurs.
 	 */
 	public void requestQueue(File file) throws IllegalStateException,
 			IOException, JHGDException {
@@ -548,7 +581,8 @@ public class HGDClient {
 	/**
 	 * Opens a socket to the server
 	 * 
-	 *@throws IOException If an I/O exception occurs.
+	 * @throws IOException
+	 *             If an I/O exception occurs.
 	 */
 	private void openSocket(String host, int port) throws IOException {
 		// Debug - attempting connection
@@ -600,8 +634,10 @@ public class HGDClient {
 	 * 
 	 * @param message
 	 *            The message to be sent.
-	 * @throws IllegalStateException in case the client is not connected.
-	 * @throws IOException If an I/O exception occurs.
+	 * @throws IllegalStateException
+	 *             in case the client is not connected.
+	 * @throws IOException
+	 *             If an I/O exception occurs.
 	 */
 	private void sendLineCommand(String message) throws IOException,
 			IllegalStateException {
@@ -623,48 +659,5 @@ public class HGDClient {
 		}
 		return HGDConsts.FAILURE;
 	}
-	
-	/**
-	 * Parse input obtained from HGDClient.requestPlaylist() and return a populated Playlist.
-	 * Dependent on the format of result of requestPlaylist (and subsequently the protocol version)
-	 * 
-	 * @author Matthew Mole
-	 * @param inputs An array of expected format: <track-id>|<filename>|<artist>|<title>|<user>
-	 * @return A Playlist object instantiated with an ArrayList of PlaylistItems, parsed from the given input
-	 */
-	public Playlist getPlaylist() throws IllegalArgumentException, JHGDException, IOException, IllegalStateException {
-		ArrayList<PlaylistItem> items = new ArrayList<PlaylistItem>();
-		
-		for (String input : requestPlaylist()) {
-			if (input.split("|").length == 5) {
-				items.add(new PlaylistItem(input.split("|")[0], input.split("|")[1], input.split("|")[2], input.split("|")[3], input.split("|")[4]));
-			}
-			else {
-				throw new IllegalArgumentException("input incorrect format");
-			}
-		}
-		
-		return new Playlist(items);
-	}
-	
-	/**
-	 * Parse input obtained from HGDClient.requestNowPlaying() and return a populated PlaylistItem.
-	 * Dependent on the format of result of requestNowPlaying (and subsequently the protocol version)
-	 * 
-	 * @author Matthew Mole
-	 * @param input An input of expected format: ok|0 or ok|?|<track-id>|<filename>|<artist>|<title>|<user>
-	 * @return A PlaylistItem object instantiated with an current song data, parsed from the given input
-	 */
-	public PlaylistItem getCurrentPlaying() throws IllegalArgumentException, JHGDException, IOException, IllegalStateException {
-		String input = requestNowPlaying();
-		if (input.split("|").length == 2) { //ok|0 = not playing
-			return new EmptyPlaylistItem();
-		}
-		else if (input.split("|").length == 7) {
-			return new PlaylistItem(input.split("|")[2], input.split("|")[3], input.split("|")[4], input.split("|")[5], input.split("|")[6]);
-		}
-		else {
-			throw new IllegalArgumentException("input incorrect format");
-		}
-	}
+
 }
