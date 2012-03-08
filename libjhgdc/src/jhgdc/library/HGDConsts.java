@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Carlos Eduardo da Silva <kaduardo@gmail.com>
+ * Copyright (c) 2011, Carlos Eduardo da Silva <kaduardo@gmail.com>, Matthew Mole <code@gairne.co.uk>
  *
  * 
  *  This file is part of libjhgdc.
@@ -35,7 +35,7 @@ public final class HGDConsts {
 	
 	public static final String VERSION = "0.1.0";
 	
-	public static final String PROTOCOLVERSION = "3";
+	public static final String PROTOCOLVERSION = "17";
 
 	/* networking */
 	public static final String DEFAULT_HOST = "127.0.0.1";
