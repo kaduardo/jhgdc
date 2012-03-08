@@ -24,8 +24,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.List;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -66,11 +64,11 @@ public class HGDClientTest {
 			client.connect(HGDConsts.DEFAULT_HOST);
 			assertTrue("The connection has not been established.", client.isConnected() );
 			
-			List <PlaylistItem> playlist = client.requestPlaylist();
+			String[] playlist = client.requestPlaylist();
 			
 			assertNotNull("Playlist returned null", playlist);
-			if (playlist.size() > 0) {
-				for (PlaylistItem tempItem : playlist)
+			if (playlist.length > 0) {
+				for (String tempItem : playlist)
 				System.out.println(tempItem);
 			}
 		} catch (Exception e) {

@@ -24,8 +24,6 @@ package jhgdc.library;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-import java.util.List;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -78,14 +76,14 @@ public class HGDClientTestPlaylist {
 	 */
 	@Test
 	public void testRequestPlaylist() throws Exception {
-		List<PlaylistItem> playlist = client.requestPlaylist();
+		String[] playlist = client.requestPlaylist();
 		assertNotNull("Method returned null playlist", playlist);
 		
 		//Make sure we don't have null items in the playlist
-		if (playlist.size() > 0) {
+		if (playlist.length > 0) {
 			
-			for (int i = 0; i < playlist.size(); i++) {
-				assertNotNull("Item number " + i + " is null", playlist.get(i));
+			for (int i = 0; i < playlist.length; i++) {
+				assertNotNull("Item number " + i + " is null", playlist[i]);
 			}
 		}
 	}
