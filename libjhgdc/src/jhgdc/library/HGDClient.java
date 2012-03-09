@@ -249,6 +249,10 @@ public class HGDClient {
 	/**
 	 * Disconnects from the HGD daemon, optionally using the BYE command.
 	 * 
+	 * This method implements the "bye" command of the HGD protocol. It notifies
+	 * the server that the client is not disconnecting. This allows the server
+	 * to clean up properly.
+	 * 
 	 * @param sendQuitCommand
 	 *            If true, uses the BYE command, otherwise the connection is
 	 *            abruptly closed by the client without sending any advice to
@@ -670,7 +674,9 @@ public class HGDClient {
 
 
 	/**
-	 * Request information about the currently logged in user
+	 * Request information about the currently logged in user.
+	 * 
+	 * This method implements the "id" command of the HGD protocol.
 	 *
 	 * @return On success, returns ok|<username>|<permission_mask>|<voted?>
 	 */
@@ -696,11 +702,19 @@ public class HGDClient {
 	}
 
 	/**
-	 * Ask the server if it supports encryption
+	 * Ask the server if it supports encryption.
+	 * 
+	 * This method implements the "encrypt?" command of the HGD protocol.
 	 *
-	 * @return On success, returns ok|<crypto-method>
+	 * @return On success, returns ok|<crypto-method>. A <crypto-method> of 
+	 * 'nocrypto' indicates the server is incapable of supplying secure 
+	 * communications.
+	 * 
+	 * @throws IllegalStateException in case the client is not connected.
+	 * @throws JHGDException in case the server responds with an error.
+	 * @throws IOException in case an I/O Exception occurs.
 	 */
-	public String checkServerEncryption() throws IllegalArgumentException,
+	public String checkServerEncryption() throws IllegalStateException,
 			JHGDException, IOException {
 		if (!connected) {
 			throw new IllegalStateException("Client not connected");
@@ -718,12 +732,23 @@ public class HGDClient {
 	}
 
 	/**
-	 * Ask the server to encrypt communications
+	 * Ask the server to encrypt communications.
+	 * 
+	 * This method implements the "encrypt" command of the HGD protocol. It 
+	 * notifies the server that all communication from here onward are to be
+	 * encrypted using SSL (TLSv1).
 	 *
 	 * The sockets are replaced with encrypted counterparts.
 	 * All buffers must be replaced as well.
 	 *
-	 * @return On success, returns ok|
+	 * @return On success, returns ok.
+	 * @throws IllegalArgumentException
+	 * @throws JHGDException 
+	 * @throws IOException If an I/O exception occurs.
+	 * @throws NoSuchAlgorithmException
+	 * @throws KeyManagementException
+	 * @throws IllegalStateException
+	 *             If the client is not connected to a HGD daemon.
 	 */
 	public String requestEncryption() throws IllegalArgumentException,
 			JHGDException, IOException, NoSuchAlgorithmException, KeyManagementException {
